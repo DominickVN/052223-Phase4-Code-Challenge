@@ -17,13 +17,20 @@ class Restaurant(db.Model, SerializerMixin):
     name = db.Column(db.String)
     address = db.Column(db.String)
 
-    restaurant_pizzas = relationship('RestaurantPizza', back_populates='restaurant')
+    restaurant_pizzas = relationship('RestaurantPizza', back_populates='restaurant', lazy='select')
     pizzas = association_proxy('restaurant_pizzas', 'pizza')
 
-    serial_exclude = ('restaurant_pizzas',)
+    serialize_rule = ('restaurant_pizzas',)
 
     def __repr__(self):
         return f'<Restaurant {self.name}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'address': self.address
+        }
 
 class Pizza(db.Model, SerializerMixin):
     __tablename__ = 'pizzas'
@@ -35,10 +42,17 @@ class Pizza(db.Model, SerializerMixin):
     restaurant_pizzas = relationship('RestaurantPizza', back_populates='pizza')
     restaurants = association_proxy('restaurant_pizzas', 'restaurant')
 
-    serial_exclude = ('restaurant_pizzas',)
+    serialize_rule = ('restaurant_pizzas',)
 
     def __repr__(self):
         return f'<Pizza {self.name}, {self.ingredients}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'ingredients': self.ingredients,
+        }
 
 class RestaurantPizza(db.Model, SerializerMixin):
     __tablename__ = 'restaurant_pizzas'
@@ -52,7 +66,7 @@ class RestaurantPizza(db.Model, SerializerMixin):
     restaurant = relationship('Restaurant', back_populates='restaurant_pizzas')
     pizza = relationship('Pizza', back_populates='restaurant_pizzas')
 
-    serial_exclude = ('restaurant', 'pizza',)
+    serialize_rule = ('restaurant', 'pizza',)
 
     @validates('price')
     def validate_price(self, key, price):
@@ -63,10 +77,10 @@ class RestaurantPizza(db.Model, SerializerMixin):
     def __repr__(self):
         return f'<RestaurantPizza ${self.price}>'
 
-    def serialize(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'price': self.price,
-            'pizza_id': self.pizza_id,
+            'pizza_id': self.pizza.id,
             'restaurant_id': self.restaurant_id,
         }

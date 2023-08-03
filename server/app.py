@@ -1,4 +1,6 @@
-from flask import Flask, request, jsonify
+# app.py
+
+from flask import Flask, request, make_response
 from flask_restful import Api, Resource
 from models import db, Restaurant, RestaurantPizza, Pizza
 import os
@@ -24,28 +26,19 @@ def index():
 class RestaurantsResource(Resource):
     def get(self):
         restaurants = Restaurant.query.all()
-        return jsonify([{
-            'id': restaurant.id,
-            'name': restaurant.name,
-            'address': restaurant.address,
-        } for restaurant in restaurants])
+        return [restaurant.to_dict() for restaurant in restaurants]
 
 class RestaurantResource(Resource):
     def get(self, restaurant_id):
         restaurant = Restaurant.query.get(restaurant_id)
         if not restaurant:
-            return {'error': 'Restaurant not found'}, 404
-        return {
-            'id': restaurant.id,
-            'name': restaurant.name,
-            'address': restaurant.address,
-            'restaurant_pizzas': [rp.serialize() for rp in restaurant.restaurant_pizzas],
-        }
+            return make_response({'error': 'Restaurant not found'}, 404)
+        return make_response(restaurant.to_dict())
 
     def delete(self, restaurant_id):
         restaurant = Restaurant.query.get(restaurant_id)
         if not restaurant:
-            return {'error': 'Restaurant not found'}, 404
+            return make_response({'error': 'Restaurant not found'}, 404)
 
         db.session.delete(restaurant)
         db.session.commit()
@@ -60,21 +53,20 @@ class RestaurantPizzaResource(Resource):
         restaurant_id = data.get('restaurant_id')
 
         if price is None or pizza_id is None or restaurant_id is None:
-            return jsonify({'errors': ['Validation errors']}), 400
+            return make_response({'errors': ['validation errors']}, 400)
 
         pizza = Pizza.query.get(pizza_id)
         restaurant = Restaurant.query.get(restaurant_id)
 
         if not pizza or not restaurant:
-            return jsonify({'errors': ['Pizza or Restaurant not found']}), 400
-
+            return make_response({'errors': ['Pizza or Restaurant not found']}, 400)
         try:
             price = int(price)
         except ValueError:
-            return jsonify({'errors': ['Invalid price value']}), 400
+            return make_response({'errors': ['invalid price value']}, 400)
 
         if not (1 <= price <= 30):
-            return jsonify({'errors': ['Price must be between 1 and 30']}), 400
+            return make_response({'errors': ['Price must be between 1 and 30']}, 400)
 
         restaurant_pizza = RestaurantPizza(
             price=price,
@@ -84,18 +76,13 @@ class RestaurantPizzaResource(Resource):
         db.session.add(restaurant_pizza)
         db.session.commit()
 
-        restaurant_pizza = RestaurantPizza.query.get(restaurant_pizza.id)
-
-        return jsonify(restaurant_pizza.serialize()), 201
+        return restaurant_pizza.to_dict(), 201
 
 class PizzasResource(Resource):
     def get(self):
         pizzas = Pizza.query.all()
-        return jsonify([{
-            'id': pizza.id,
-            'name': pizza.name,
-            'ingredients': pizza.ingredients,
-        } for pizza in pizzas])
+        return [pizza.to_dict() for pizza in pizzas]
+
 
 api.add_resource(RestaurantsResource, '/restaurants')
 api.add_resource(RestaurantResource, '/restaurants/<int:restaurant_id>')
